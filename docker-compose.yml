@@ -1,0 +1,50 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/code/  # Hot-reload: si cambias código en tu PC, se actualiza en Docker
+    depends_on:
+      - db
+      - redis # Ahora depende de redis también
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
+      - CELERY_BROKER_URL=redis://redis:6379/0 # URL de conexión a la cola
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=rpa_db
+    ports:
+      - "5432:5432"
+
+# --- NUEVO: WORKER (El ejecutor de Bots) ---
+  worker:
+    build: .
+    command: celery -A app.celery_worker.celery_app worker --loglevel=info
+    volumes:
+      - .:/code/
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+
+  # --- NUEVO: REDIS (La Cola) ---
+  redis:
+    image: redis:7-alpine
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
