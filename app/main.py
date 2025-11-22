@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 from app.db.session import create_db_and_tables
-from app.api.v1 import bots
 from app.api.v1 import executions  # Importar nuevo router
+from app.api.v1 import auth  # Importar auth
+from app.api.v1 import bots, executions
+from app.models.user import User  # Importar User para que SQLModel cree la tabla
+from app.api.v1.deps import get_current_user  # Importar al Guardia
 
 
 # Lifespan: Eventos que ocurren al iniciar/apagar la app
@@ -16,8 +19,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RPA Orchestrator", version="1.0.0", lifespan=lifespan)
 
-app.include_router(bots.router, prefix="/bots", tags=["Bots"])
-app.include_router(executions.router, prefix="/executions", tags=["Ejecuciones"])
+app.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
+app.include_router(
+    executions.router,
+    prefix="/executions",
+    tags=["Ejecuciones"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    bots.router,
+    prefix="/bots",
+    tags=["Bots"],
+    dependencies=[Depends(get_current_user)],  # <--- EL CANDADO GLOBAL
+)
 
 
 @app.get("/", tags=["Root"])

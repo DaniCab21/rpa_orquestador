@@ -15,7 +15,8 @@ services:
   db:
     image: postgres:15
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # 👇 ESTO ES LA CLAVE DE LA PERSISTENCIA
+      - postgres_data:/var/lib/postgresql/data # 👈 Aquí declaramos la "Caja Fuerte"
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
@@ -44,6 +45,7 @@ services:
     image: adminer
     restart: always
     ports:
+      # El formato es "PUERTO_EXTERNO:PUERTO_INTERNO"
       - "8080:8080"
 
 volumes:
