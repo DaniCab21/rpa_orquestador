@@ -1,4 +1,7 @@
+# docker-compose down
+# docker-compose up -d --build
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware  # <--- IMPORTAR ESTO
 from contextlib import asynccontextmanager
 from app.db.session import create_db_and_tables
 from app.api.v1 import executions  # Importar nuevo router
@@ -31,6 +34,18 @@ app.include_router(
     prefix="/bots",
     tags=["Bots"],
     dependencies=[Depends(get_current_user)],  # <--- EL CANDADO GLOBAL
+)
+
+origins = [
+    "http://localhost:4200",  # Permitir Angular local
+    "http://localhost",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,  # Permitir enviar Cookies/Tokens
+    allow_methods=["*"],  # Permitir GET, POST, DELETE, etc.
+    allow_headers=["*"],  # Permitir headers de Authorization
 )
 
 

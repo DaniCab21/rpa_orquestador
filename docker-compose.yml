@@ -48,5 +48,23 @@ services:
       # El formato es "PUERTO_EXTERNO:PUERTO_INTERNO"
       - "8080:8080"
 
+  chrome:
+    image: selenium/standalone-chrome:latest
+    shm_size: "2gb" # Importante: Chrome consume mucha memoria compartida
+    ports:
+      - "4444:4444" # Puerto estándar de Selenium Grid
+    environment:
+      - SE_NODE_MAX_SESSIONS=1 # Un navegador a la vez para no explotar tu PC
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4200:4200" # Puerto estándar de Angular
+    volumes:
+      - ./frontend:/app # Hot-reload: Si editas en VS Code, se actualiza en Docker
+      - /app/node_modules # Truco: Evita que Docker sobrescriba las librerías con tu carpeta local vacía
+      - /app/.angular
+    depends_on:
+      - web
 volumes:
   postgres_data:
