@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RPA Orchestrator", version="1.0.0", lifespan=lifespan)
 
-app.include_router(bots.router, prefix="/bots", tags=["Bots"], dependencies=[Depends(get_current_user)])
 app.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
+app.include_router(bots.router, prefix="/bots", tags=["Bots"], dependencies=[Depends(get_current_user)])
 app.include_router(executions.router, prefix="/executions", tags=["Ejecuciones"], dependencies=[Depends(get_current_user)])
 
 origins = [

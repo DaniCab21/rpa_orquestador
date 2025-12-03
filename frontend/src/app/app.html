@@ -4,10 +4,10 @@
   <div *ngIf="!token" class="login-box">
     <h2>Iniciar Sesión</h2>
     <div class="form-group">
-      <input type="text" [(ngModel)]="email" placeholder="Email">
+      <input type="text" [(ngModel)]="email" placeholder="Email" />
     </div>
     <div class="form-group">
-      <input type="password" [(ngModel)]="password" placeholder="Contraseña">
+      <input type="password" [(ngModel)]="password" placeholder="Contraseña" />
     </div>
     <button (click)="onLogin()">Entrar</button>
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
@@ -15,32 +15,46 @@
 
   <div *ngIf="token" class="dashboard">
     <div class="header">
-        <h3 class="success">Panel de Control</h3>
-        <button (click)="logout()" class="logout-btn">Salir</button>
+      <h3 class="success">Panel de Control</h3>
+      <button (click)="logout()" class="logout-btn">Salir</button>
+    </div>
+
+    <div class="control-panel create-bot-panel">
+      <h4>✨ Crear Nuevo Robot</h4>
+      <div class="form-row">
+        <input type="text" [(ngModel)]="newBotName" placeholder="Nombre (ej: CryptoBot)" />
+        <input type="text" [(ngModel)]="newBotDescription" placeholder="Descripción corta" />
+        <button (click)="createBot()" class="create-btn">Crear</button>
+      </div>
     </div>
 
     <div class="control-panel">
-        <label>URL Objetivo para los Bots:</label>
-        <input type="text" [(ngModel)]="targetUrl" placeholder="https://...">
+      <label>URL Objetivo para los Bots:</label>
+      <input type="text" [(ngModel)]="targetUrl" placeholder="https://..." />
     </div>
 
     <div *ngIf="executionMessage" class="alert">
-        {{ executionMessage }}
+      {{ executionMessage }}
     </div>
 
     <div class="bot-list">
-        <div *ngFor="let bot of bots" class="bot-card">
-            <div class="bot-info">
-                <h4>🤖 {{ bot.name }}</h4>
-                <p>{{ bot.description }}</p>
-                <small>Estado: <strong>{{ bot.status }}</strong></small>
-            </div>
-            <div class="bot-actions">
-                <button (click)="runBot(bot.name)">▶ Ejecutar</button>
-            </div>
+      <div *ngFor="let bot of bots" class="bot-card">
+        <div class="bot-info">
+          <h4>🤖 {{ bot.name }}</h4>
+          <p>{{ bot.description }}</p>
+          <small
+            >Estado: <strong>{{ bot.status }}</strong></small
+          >
         </div>
+
+        <div class="bot-actions">
+          <button (click)="runBot(bot.name)">▶ Ejecutar</button>
+
+          <button (click)="deleteBot(bot.id)" class="delete-btn">🗑️</button>
+        </div>
+      </div>
     </div>
-    
+
     <p *ngIf="bots.length === 0">No hay bots registrados en la base de datos.</p>
   </div>
 </div>

@@ -4,7 +4,7 @@ from typing import List
 
 from app.db.session import get_session
 from app.models.bot import Bot
-from app.schemas.bot import BotCreate, BotRead
+from app.schemas.bot import BotCreate, BotRead, BotUpdate
 
 router = APIRouter()
 
@@ -37,3 +37,40 @@ def read_bot(bot_id: int, session: Session = Depends(get_session)):
     if not bot:
         raise HTTPException(status_code=404, detail="Bot no encontrado")
     return bot
+
+
+# 4. ACTUALIZAR UN BOT (PUT/PATCH)
+@router.patch("/{bot_id}", response_model=BotRead)
+def update_bot(
+    bot_id: int, bot_update: BotUpdate, session: Session = Depends(get_session)
+):
+    # 1. Buscar
+    bot_db = session.get(Bot, bot_id)
+    if not bot_db:
+        raise HTTPException(status_code=404, detail="Bot no encontrado")
+
+    # 2. Copiar datos nuevos sobre los viejos
+    # exclude_unset=True significa: "Si el usuario no envió este campo, no lo toques"
+    bot_data = bot_update.model_dump(exclude_unset=True)
+
+    for key, value in bot_data.items():
+        setattr(bot_db, key, value)
+
+    # 3. Guardar
+    session.add(bot_db)
+    session.commit()
+    session.refresh(bot_db)
+    return bot_db
+
+
+# 5. ELIMINAR UN BOT (DELETE)
+@router.delete("/{bot_id}")
+def delete_bot(bot_id: int, session: Session = Depends(get_session)):
+    bot_db = session.get(Bot, bot_id)
+    if not bot_db:
+        raise HTTPException(status_code=404, detail="Bot no encontrado")
+
+    session.delete(bot_db)
+    session.commit()
+
+    return {"message": "Bot eliminado correctamente", "id": bot_id}
