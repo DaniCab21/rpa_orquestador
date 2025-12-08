@@ -1,5 +1,15 @@
-venv/
+# Seguridad: Nunca subir claves
+.env
+
+# Python: Archivos compilados y temporales
 __pycache__/
+*.py[cod]
+venv/
 .pytest_cache/
+
+# Docker (si tienes volúmenes locales)
 postgres_data/
-*.pyc
+
+# IDEs
+.vscode/
+.idea/

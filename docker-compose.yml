@@ -9,18 +9,18 @@ services:
       - db
       - redis # Ahora depende de redis también
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
-      - CELERY_BROKER_URL=redis://redis:6379/0 # URL de conexión a la cola
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
 
   db:
     image: postgres:15
-    volumes:
-      # 👇 ESTO ES LA CLAVE DE LA PERSISTENCIA
-      - postgres_data:/var/lib/postgresql/data # 👈 Aquí declaramos la "Caja Fuerte"
+    restart: always
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=rpa_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
@@ -34,9 +34,9 @@ services:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - GEMINI_API_KEY=AIzaSyCIlsat6dSJETf39Hiq5GfnI9POinVtJn8
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  # <--- ¡MÁS SEGURO!
 
   # 👇 NUEVO SERVICIO: EL PROGRAMADOR
   beat:
@@ -45,10 +45,8 @@ services:
     volumes:
       - .:/code
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-    # No necesita la API KEY de Gemini ni Selenium, 
-    # porque él solo da la orden, no ejecuta la tarea.
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
     depends_on:
       - redis
   # --- NUEVO: REDIS (La Cola) ---
