@@ -54,4 +54,11 @@ export class BotService {
       headers: this.getHeaders(token),
     });
   }
+
+  // 5. Obtener estadísticas
+  getStats(token: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/bots/stats/overview`, {
+      headers: this.getHeaders(token),
+    });
+  }
 }

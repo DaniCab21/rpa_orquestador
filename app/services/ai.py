@@ -15,7 +15,7 @@ def analyze_text_with_gemini(text: str) -> str:
         return "⚠️ Error: No se configuró la API Key de Gemini."
 
     try:
-        model_name = "gemini-2.0-flash"
+        model_name = "gemini-2.5-flash"
         model = genai.GenerativeModel(model_name)
 
         prompt = f"""

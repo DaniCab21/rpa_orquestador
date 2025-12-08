@@ -38,7 +38,7 @@ def login(
     
     # Verificamos password
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
+        raise HTTPException(status_code=400, detail="Por favor valide las credenciales")
     
     # Creamos el Token
     access_token = create_access_token(subject=user.id)

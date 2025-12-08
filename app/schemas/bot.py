@@ -28,3 +28,4 @@ class BotUpdate(SQLModel):
 class BotRead(BotBase):
     id: int
     created_at: datetime
+    last_analysis: Optional[str] = None

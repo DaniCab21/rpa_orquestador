@@ -2,6 +2,13 @@ from celery import shared_task
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By  # Importante para buscar elementos
+
+# --- IMPORTS DE BASE DE DATOS ---
+from sqlmodel import Session, select
+from app.db.session import engine  # Necesitamos el motor para crear una sesión
+from app.models.bot import Bot  # Necesitamos el modelo para buscar y actualizar
+
+# --------------------------------
 from app.celery_worker import celery_app
 from app.services.ai import analyze_text_with_gemini  # Importamos nuestro cerebro
 
@@ -27,35 +34,36 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
     result_text = ""
 
     try:
-        # --- FASE 1: EXTRACTOR (RPA) ---
-        print(f"🌍 Navegando a: {url_to_scrape}")
+        print("🔍 Iniciando proceso de scraping...")
+        # 1. RPA
         driver = get_remote_driver()
+        print(f"🌍 Navegando a: {url_to_scrape}")
         driver.get(url_to_scrape)
 
-        # Obtenemos el título
-        title = driver.title
-
-        # Obtenemos el texto del cuerpo (body)
-        # Esto extrae todo el texto visible de la página
         body_text = driver.find_element(By.TAG_NAME, "body").text
+        clean_text = " ".join(body_text.split())  # Limpiar espacios
 
-        # Limpieza básica: Quitamos saltos de línea excesivos
-        clean_text = " ".join(body_text.split())
-
-        print(f"✅ Texto extraído ({len(clean_text)} caracteres). Enviando a Gemini...")
-
-        # --- FASE 2: ANALISTA (IA) ---
+        # 2. IA
+        print("🧠 Enviando a Gemini...")
         analysis = analyze_text_with_gemini(clean_text)
 
-        result_text = f"""
-        reporte para: {title}
-        --------------------------------
-        {analysis}
-        """
+        result_text = f"Fuente: {driver.title}\n\n{analysis}"
 
-        print("🧠 Análisis completado:")
-        print(result_text)
+        # 3. PERSISTENCIA (GUARDAR EN DB)
+        # Abrimos una sesión efímera solo para guardar esto
+        with Session(engine) as session:
+            # Buscamos el bot por nombre
+            statement = select(Bot).where(Bot.name == bot_name)
+            bot_db = session.exec(statement).first()
 
+            if bot_db:
+                bot_db.last_analysis = result_text  # <--- GUARDAMOS AQUÍ
+                bot_db.status = "completed"
+                session.add(bot_db)
+                session.commit()
+                print("💾 Análisis guardado en base de datos.")
+            else:
+                print("⚠️ No encontré el bot en la BD para guardar el resultado.")
     except Exception as e:
         print(f"❌ Error crítico: {e}")
         return f"Falló: {str(e)}"

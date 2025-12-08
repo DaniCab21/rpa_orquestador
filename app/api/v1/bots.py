@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from sqlalchemy import func  # <--- Para hacer COUNT
 from typing import List
 
 from app.db.session import get_session
@@ -74,3 +75,21 @@ def delete_bot(bot_id: int, session: Session = Depends(get_session)):
     session.commit()
 
     return {"message": "Bot eliminado correctamente", "id": bot_id}
+
+
+# 6. OBTENER ESTADÍSTICAS (KPIs)
+@router.get("/stats/overview")
+def get_bot_stats(session: Session = Depends(get_session)):
+    # Total de bots
+    total_bots = session.exec(select(func.count(Bot.id))).one()
+    print(f"Total de bots en sistema: {total_bots}")
+    # Conteo por estado (Agrupación)
+    # Esto equivale a: SELECT status, COUNT(*) FROM bot GROUP BY status
+    statement = select(Bot.status, func.count(Bot.id)).group_by(Bot.status)
+    results = session.exec(statement).all()
+
+    # Convertimos la lista de tuplas en un diccionario fácil de leer
+    # Ej: [('idle', 5), ('completed', 2)] -> {'idle': 5, 'completed': 2}
+    status_counts = {status: count for status, count in results}
+
+    return {"total": total_bots, "by_status": status_counts}
