@@ -12,3 +12,5 @@ pyjwt
 python-multipart
 bcrypt==4.0.1
 selenium
+google-generativeai
+beautifulsoup4

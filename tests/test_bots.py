@@ -1,30 +1,31 @@
-def test_create_bot(client):
-    # 1. DATOS: Preparamos el payload
+# Inyectamos el fixture 'auth_headers' en la función
+def test_create_bot(client, auth_headers):
+    # 1. DATOS
     payload = {
-        "name": "TestBot_007",
-        "description": "Un bot creado por test automático",
-        "status": "idle"
+        "name": "SuperTestBot",
+        "description": "Un bot creado con seguridad",
+        "status": "idle",
     }
-    
-    # 2. ACCIÓN: Hacemos POST al endpoint real
-    response = client.post("/bots/", json=payload)
-    
-    # 3. ASSERT (Verificación): Comprobamos que todo salió bien
+
+    # 2. ACCIÓN: Agregamos headers=auth_headers
+    response = client.post("/bots/", json=payload, headers=auth_headers)
+
+    # 3. VERIFICACIÓN
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == "TestBot_007"
-    assert "id" in data
-    
-    # Guardamos el ID para verificar que podemos leerlo después
-    bot_id = data["id"]
-    
-    # 4. VERIFICACIÓN DOBLE: Intentamos leerlo con GET
-    response_get = client.get(f"/bots/{bot_id}")
-    assert response_get.status_code == 200
-    assert response_get.json()["name"] == "TestBot_007"
+    assert data["name"] == "SuperTestBot"
 
-def test_read_bots(client):
-    # Probamos que la lista no esté vacía
-    response = client.get("/bots/")
+    # Guardamos el ID para verificar lectura
+    bot_id = data["id"]
+
+    # 4. LECTURA (También suele requerir token si protegiste el GET)
+    response_get = client.get(f"/bots/{bot_id}", headers=auth_headers)
+    assert response_get.status_code == 200
+    assert response_get.json()["name"] == "SuperTestBot"
+
+
+def test_read_bots(client, auth_headers):
+    # Probamos la lista, enviando también el token
+    response = client.get("/bots/", headers=auth_headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)

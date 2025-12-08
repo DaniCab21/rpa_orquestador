@@ -2,6 +2,7 @@
 # docker-compose up -d --build
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware  # <--- IMPORTAR ESTO
+from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 from app.db.session import create_db_and_tables
 from app.api.v1 import executions  # Importar nuevo router
@@ -24,16 +25,13 @@ app = FastAPI(title="RPA Orchestrator", version="1.0.0", lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/auth", tags=["Autenticación"])
 app.include_router(
+    bots.router, prefix="/bots", tags=["Bots"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
     executions.router,
     prefix="/executions",
     tags=["Ejecuciones"],
     dependencies=[Depends(get_current_user)],
-)
-app.include_router(
-    bots.router,
-    prefix="/bots",
-    tags=["Bots"],
-    dependencies=[Depends(get_current_user)],  # <--- EL CANDADO GLOBAL
 )
 
 origins = [
@@ -51,4 +49,9 @@ app.add_middleware(
 
 @app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Bienvenido al RPA Orchestrator", "db_status": "Connected"}
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

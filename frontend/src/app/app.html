@@ -1,46 +1,137 @@
 <div class="container">
-  <h1>🤖 RPA Orchestrator</h1>
+  <div *ngIf="!token" class="login-box centered-login">
+    <h1>🤖 RPA Orchestrator</h1>
+    <h2>{{ isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión' }}</h2>
 
-  <div *ngIf="!token" class="login-box">
-    <h2>Iniciar Sesión</h2>
-    <div class="form-group">
-      <input type="text" [(ngModel)]="email" placeholder="Email">
+    <form (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <input type="text" name="email" [(ngModel)]="email" placeholder="Email" />
+      </div>
+
+      <div class="form-group">
+        <input type="password" name="password" [(ngModel)]="password" placeholder="Contraseña" />
+      </div>
+
+      <button *ngIf="!isRegistering" type="submit">Entrar</button>
+      <button *ngIf="isRegistering" type="submit" class="register-btn">Registrarse</button>
+    </form>
+    <div class="toggle-link">
+      <p *ngIf="!isRegistering">
+        ¿No tienes cuenta? <a (click)="isRegistering = true">Regístrate aquí</a>
+      </p>
+      <p *ngIf="isRegistering">
+        ¿Ya tienes cuenta? <a (click)="isRegistering = false">Inicia sesión</a>
+      </p>
     </div>
-    <div class="form-group">
-      <input type="password" [(ngModel)]="password" placeholder="Contraseña">
-    </div>
-    <button (click)="onLogin()">Entrar</button>
-    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
   </div>
 
   <div *ngIf="token" class="dashboard">
-    <div class="header">
-        <h3 class="success">Panel de Control</h3>
-        <button (click)="logout()" class="logout-btn">Salir</button>
-    </div>
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1>🤖 RPA Orchestrator</h1>
+      </div>
+      <div class="nav-actions">
+        <span class="user-email">{{ email }}</span>
+        <button (click)="logout()" class="logout-btn">Cerrar Sesión</button>
+      </div>
+    </nav>
 
-    <div class="control-panel">
-        <label>URL Objetivo para los Bots:</label>
-        <input type="text" [(ngModel)]="targetUrl" placeholder="https://...">
-    </div>
-
-    <div *ngIf="executionMessage" class="alert">
-        {{ executionMessage }}
-    </div>
-
-    <div class="bot-list">
-        <div *ngFor="let bot of bots" class="bot-card">
-            <div class="bot-info">
-                <h4>🤖 {{ bot.name }}</h4>
-                <p>{{ bot.description }}</p>
-                <small>Estado: <strong>{{ bot.status }}</strong></small>
-            </div>
-            <div class="bot-actions">
-                <button (click)="runBot(bot.name)">▶ Ejecutar</button>
-            </div>
+    <div class="dashboard-content">
+      <div class="section-title">Resumen de Actividad</div>
+      <div class="stats-container">
+        <div class="stat-card total">
+          <span class="stat-title">Total</span>
+          <span class="stat-value">{{ stats.total }}</span>
         </div>
+        <div class="stat-card success">
+          <span class="stat-title">Completados</span>
+          <span class="stat-value">{{ stats.by_status.completed || 0 }}</span>
+        </div>
+        <div class="stat-card warning">
+          <span class="stat-title">En Espera</span>
+          <span class="stat-value">{{ stats.by_status.idle || 0 }}</span>
+        </div>
+        <div class="stat-card danger">
+          <span class="stat-title">Fallidos</span>
+          <span class="stat-value">{{ stats.by_status.failed || 0 }}</span>
+        </div>
+      </div>
+
+      <div class="operations-grid">
+        <div class="control-panel create-bot-panel">
+          <h4>✨ Nuevo Robot</h4>
+          <div class="form-column">
+            <input type="text" [(ngModel)]="newBotName" placeholder="Nombre (ej: CryptoBot)" />
+            <input type="text" [(ngModel)]="newBotDescription" placeholder="Descripción corta" />
+            <button (click)="createBot()" class="create-btn">Crear Robot</button>
+          </div>
+        </div>
+
+        <div class="control-panel config-panel">
+          <h4>⚙️ Configuración Global</h4>
+          <div class="form-column">
+            <label>URL Objetivo:</label>
+            <input type="text" [(ngModel)]="targetUrl" placeholder="https://..." />
+            <small>Esta URL será usada por todos los bots al ejecutarse.</small>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="executionMessage" class="alert">
+        {{ executionMessage }}
+      </div>
+
+      <div class="section-title">Mis Robots</div>
+
+      <div class="bot-list">
+        <div *ngFor="let bot of bots" class="bot-card">
+          <div class="bot-header">
+            <div class="bot-info">
+              <h4>🤖 {{ bot.name }}</h4>
+              <p>{{ bot.description }}</p>
+              <div class="status-badge" [class]="bot.status">
+                {{ bot.status }}
+              </div>
+            </div>
+
+            <div class="bot-actions">
+              <button (click)="runBot(bot.name)" class="run-btn">▶ Ejecutar</button>
+              <button (click)="deleteBot(bot.id)" class="delete-btn">🗑️</button>
+            </div>
+          </div>
+
+          <
+          <div *ngIf="bot.last_analysis" class="analysis-box">
+            <div class="analysis-header">
+              <div>
+                <strong>🧠 Análisis de Gemini:</strong>
+
+                <small *ngIf="bot.last_analysis_at" style="color: #666; font-size: 11px">
+                  Actualizado: {{ bot.last_analysis_at | date : 'medium' }}
+                </small>
+              </div>
+
+              <button
+                *ngIf="bot.last_analysis.length > 200"
+                (click)="bot.isExpanded = !bot.isExpanded"
+                class="toggle-btn"
+              >
+                {{ bot.isExpanded ? 'Ver menos ▲' : 'Ver más ▼' }}
+              </button>
+            </div>
+
+            <pre>
+                {{ bot.isExpanded ? bot.last_analysis : (bot.last_analysis | slice : 0 : 200) }}
+                {{ !bot.isExpanded && bot.last_analysis.length > 200 ? '...' : '' }}
+              </pre
+            >
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="bots.length === 0" class="empty-state">
+        <p>😴 No tienes robots activos. Crea uno arriba para comenzar.</p>
+      </div>
     </div>
-    
-    <p *ngIf="bots.length === 0">No hay bots registrados en la base de datos.</p>
   </div>
 </div>

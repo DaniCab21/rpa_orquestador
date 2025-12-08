@@ -28,4 +28,10 @@ export class AuthService {
     // Es equivalente a: requests.post(url, data=formData) en Python
     return this.http.post(`${this.apiUrl}/auth/login`, formData);
   }
+
+  // Nota: Aquí enviamos un objeto JSON normal, no FormData
+  register(email: string, password: string): Observable<any> {
+    const body = { email: email, password: password };
+    return this.http.post(`${this.apiUrl}/auth/signup`, body);
+  }
 }
