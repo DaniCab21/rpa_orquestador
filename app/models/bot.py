@@ -13,3 +13,4 @@ class Bot(SQLModel, table=True):
     # default_factory ejecuta la función al momento de insertar
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_analysis: Optional[str] = Field(default=None, sa_column=Column(Text))
+    last_analysis_at: Optional[datetime] = Field(default=None)

@@ -24,7 +24,7 @@ services:
     ports:
       - "5432:5432"
 
-# --- NUEVO: WORKER (El ejecutor de Bots) ---
+  # --- NUEVO: WORKER (El ejecutor de Bots) ---
   worker:
     build: .
     command: celery -A app.celery_worker.celery_app worker --loglevel=info
@@ -38,6 +38,19 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - GEMINI_API_KEY=AIzaSyCIlsat6dSJETf39Hiq5GfnI9POinVtJn8
 
+  # 👇 NUEVO SERVICIO: EL PROGRAMADOR
+  beat:
+    build: .
+    command: celery -A app.celery_worker beat --loglevel=info
+    volumes:
+      - .:/code
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/rpa_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    # No necesita la API KEY de Gemini ni Selenium, 
+    # porque él solo da la orden, no ejecuta la tarea.
+    depends_on:
+      - redis
   # --- NUEVO: REDIS (La Cola) ---
   redis:
     image: redis:7-alpine

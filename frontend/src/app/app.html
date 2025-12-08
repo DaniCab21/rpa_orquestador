@@ -100,9 +100,16 @@
             </div>
           </div>
 
+          <
           <div *ngIf="bot.last_analysis" class="analysis-box">
             <div class="analysis-header">
-              <strong>🧠 Análisis de Gemini:</strong>
+              <div>
+                <strong>🧠 Análisis de Gemini:</strong>
+
+                <small *ngIf="bot.last_analysis_at" style="color: #666; font-size: 11px">
+                  Actualizado: {{ bot.last_analysis_at | date : 'medium' }}
+                </small>
+              </div>
 
               <button
                 *ngIf="bot.last_analysis.length > 200"
@@ -116,7 +123,8 @@
             <pre>
                 {{ bot.isExpanded ? bot.last_analysis : (bot.last_analysis | slice : 0 : 200) }}
                 {{ !bot.isExpanded && bot.last_analysis.length > 200 ? '...' : '' }}
-            </pre>
+              </pre
+            >
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 from celery import shared_task
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By  # Importante para buscar elementos
@@ -34,7 +35,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
     result_text = ""
 
     try:
-        print("🔍 Iniciando proceso de scraping...")
+        print("🔍 Iniciando proceso de scraping..." + datetime.utcnow())
         # 1. RPA
         driver = get_remote_driver()
         print(f"🌍 Navegando a: {url_to_scrape}")
@@ -58,6 +59,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
 
             if bot_db:
                 bot_db.last_analysis = result_text  # <--- GUARDAMOS AQUÍ
+                bot_db.last_analysis_at = datetime.utcnow()
                 bot_db.status = "completed"
                 session.add(bot_db)
                 session.commit()
