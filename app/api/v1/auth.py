@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 
@@ -35,7 +35,7 @@ def login(
 ):
     # Buscamos al usuario
     user = session.exec(select(User).where(User.email == form_data.username)).first()
-    
+    print(user)
     # Verificamos password
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Por favor valide las credenciales")

@@ -28,6 +28,7 @@ def create_bot(bot_data: BotCreate, session: Session = Depends(get_session)):
 @router.get("/", response_model=List[BotRead])
 def read_bots(session: Session = Depends(get_session)):
     bots = session.exec(select(Bot)).all()
+    print("XXXX" + str(bots))
     return bots
 
 

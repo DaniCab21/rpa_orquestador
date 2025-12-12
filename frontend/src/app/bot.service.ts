@@ -1,12 +1,15 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
 export class BotService {
   private apiUrl = 'http://localhost:8000';
+  private socket: WebSocket | undefined;
+  // Usamos un Subject para que el componente se suscriba a los mensajes
+  public messages$ = new Subject<any>();
 
   constructor(private http: HttpClient) {}
 
@@ -60,5 +63,21 @@ export class BotService {
     return this.http.get<any>(`${this.apiUrl}/bots/stats/overview`, {
       headers: this.getHeaders(token),
     });
+  }
+
+  connectWebSocket() {
+    // Asegúrate de que la URL coincida con tu backend (ws:// en vez de http://)
+    this.socket = new WebSocket('ws://localhost:8000/ws');
+
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('⚡ Notificación recibida:', data);
+      this.messages$.next(data); // Avisamos a quien esté escuchando
+    };
+
+    this.socket.onclose = () => {
+      console.warn('WebSocket desconectado. Reintentando en 3s...');
+      setTimeout(() => this.connectWebSocket(), 3000);
+    };
   }
 }

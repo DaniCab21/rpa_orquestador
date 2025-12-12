@@ -1,5 +1,6 @@
 <div class="container">
-  <div *ngIf="!token" class="login-box centered-login">
+  @if (!token) {
+  <div class="login-box centered-login">
     <h1>🤖 RPA Orchestrator</h1>
     <h2>{{ isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión' }}</h2>
 
@@ -12,26 +13,31 @@
         <input type="password" name="password" [(ngModel)]="password" placeholder="Contraseña" />
       </div>
 
-      <button *ngIf="!isRegistering" type="submit">Entrar</button>
-      <button *ngIf="isRegistering" type="submit" class="register-btn">Registrarse</button>
+      @if (!isRegistering) {
+      <button type="submit">Entrar</button>
+      } @else {
+      <button type="submit" class="register-btn">Registrarse</button>
+      }
     </form>
+
     <div class="toggle-link">
-      <p *ngIf="!isRegistering">
-        ¿No tienes cuenta? <a (click)="isRegistering = true">Regístrate aquí</a>
-      </p>
-      <p *ngIf="isRegistering">
-        ¿Ya tienes cuenta? <a (click)="isRegistering = false">Inicia sesión</a>
-      </p>
+      @if (errorMessage) {
+      <p class="error">{{ errorMessage }}</p>
+      } @if (!isRegistering) {
+      <p>¿No tienes cuenta? <a (click)="toggleAuthMode(true)">Regístrate aquí</a></p>
+      } @else {
+      <p>¿Ya tienes cuenta? <a (click)="toggleAuthMode(false)">Inicia sesión</a></p>
+      }
     </div>
   </div>
-
-  <div *ngIf="token" class="dashboard">
+  } @else {
+  <div class="dashboard">
     <nav class="navbar">
       <div class="nav-brand">
         <h1>🤖 RPA Orchestrator</h1>
       </div>
       <div class="nav-actions">
-        <span class="user-email">{{ email }}</span>
+        <span class="user-email">{{currentUserEmail}}</span>
         <button (click)="logout()" class="logout-btn">Cerrar Sesión</button>
       </div>
     </nav>
@@ -77,14 +83,15 @@
         </div>
       </div>
 
-      <div *ngIf="executionMessage" class="alert">
-        {{ executionMessage }}
-      </div>
+      @if (executionMessage) {
+      <div class="alert">{{ executionMessage }}</div>
+      }
 
       <div class="section-title">Mis Robots</div>
 
       <div class="bot-list">
-        <div *ngFor="let bot of bots" class="bot-card">
+        @for (bot of bots; track bot.id) {
+        <div class="bot-card">
           <div class="bot-header">
             <div class="bot-info">
               <h4>🤖 {{ bot.name }}</h4>
@@ -100,38 +107,39 @@
             </div>
           </div>
 
-          <
-          <div *ngIf="bot.last_analysis" class="analysis-box">
+          @if (bot.last_analysis) {
+          <div class="analysis-box">
             <div class="analysis-header">
               <div>
                 <strong>🧠 Análisis de Gemini:</strong>
-
-                <small *ngIf="bot.last_analysis_at" style="color: #666; font-size: 11px">
+                @if (bot.last_analysis_at) {
+                <small style="color: #666; font-size: 11px">
                   Actualizado: {{ bot.last_analysis_at | date : 'medium' }}
                 </small>
+                }
               </div>
 
-              <button
-                *ngIf="bot.last_analysis.length > 200"
-                (click)="bot.isExpanded = !bot.isExpanded"
-                class="toggle-btn"
-              >
+              @if (bot.last_analysis.length > 200) {
+              <button (click)="toggleExpand(bot)" class="toggle-btn">
                 {{ bot.isExpanded ? 'Ver menos ▲' : 'Ver más ▼' }}
               </button>
+              }
             </div>
 
-            <pre>
-                {{ bot.isExpanded ? bot.last_analysis : (bot.last_analysis | slice : 0 : 200) }}
-                {{ !bot.isExpanded && bot.last_analysis.length > 200 ? '...' : '' }}
-              </pre
+            <pre
+              >{{ bot.isExpanded ? bot.last_analysis : (bot.last_analysis | slice : 0 : 200)
+              }}{{ !bot.isExpanded && bot.last_analysis.length > 200 ? '...' : '' }}</pre
             >
           </div>
+          }
         </div>
-      </div>
-
-      <div *ngIf="bots.length === 0" class="empty-state">
-        <p>😴 No tienes robots activos. Crea uno arriba para comenzar.</p>
+        } @empty {
+        <div class="empty-state">
+          <p>😴 No tienes robots activos. Crea uno arriba para comenzar.</p>
+        </div>
+        }
       </div>
     </div>
   </div>
+  }
 </div>

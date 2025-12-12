@@ -1,3 +1,6 @@
+import json
+import os
+import redis
 from celery import shared_task
 from datetime import datetime
 from selenium import webdriver
@@ -12,6 +15,10 @@ from app.models.bot import Bot  # Necesitamos el modelo para buscar y actualizar
 # --------------------------------
 from app.celery_worker import celery_app
 from app.services.ai import analyze_text_with_gemini  # Importamos nuestro cerebro
+
+# Configuramos cliente Redis (Síncrono para Celery)
+redis_url = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+redis_client = redis.from_url(redis_url)
 
 
 def get_remote_driver():
@@ -35,7 +42,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
     result_text = ""
 
     try:
-        print("🔍 Iniciando proceso de scraping..." + datetime.utcnow())
+        print("🔍 Iniciando proceso de scraping..." + str(datetime.utcnow()))
         # 1. RPA
         driver = get_remote_driver()
         print(f"🌍 Navegando a: {url_to_scrape}")
@@ -66,6 +73,17 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
                 print("💾 Análisis guardado en base de datos.")
             else:
                 print("⚠️ No encontré el bot en la BD para guardar el resultado.")
+
+        message = {
+            "bot_name": bot_name,
+            "status": "completed",
+            "last_analysis": result_text,
+            "last_analysis_at": str(datetime.utcnow()),
+        }
+        # PUBLICAR EN CANAL REDIS
+        # 'bot_updates' es el nombre del canal (radio)
+        redis_client.publish("bot_updates", json.dumps(message))
+        print(f"📡 Evento publicado en Redis para {bot_name}")
     except Exception as e:
         print(f"❌ Error crítico: {e}")
         return f"Falló: {str(e)}"

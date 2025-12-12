@@ -4,7 +4,6 @@ sqlmodel
 psycopg2-binary
 pydantic-settings
 celery
-redis
 pytest
 httpx
 passlib[bcrypt]
@@ -14,3 +13,6 @@ bcrypt==4.0.1
 selenium
 google-generativeai
 beautifulsoup4
+websockets
+aiofiles
+redis>=5.0.0

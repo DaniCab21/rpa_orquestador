@@ -1,34 +1,38 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, OnInit } from '@angular/core'; // <--- Agregado OnInit
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './auth.service';
 import { BotService } from './bot.service';
-// import { ChangeDetectorRef } from '@angular/core'; // <--- Agrega ChangeDetectorRef
+import { ChangeDetectorRef } from '@angular/core';
+
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   // Variables de Login
   email: string = '';
   password: string = '';
   token: string | null = null;
   errorMessage: string = '';
+  currentUserEmail: string = '';
 
   // Variables de Dashboard
-  bots: any[] = []; // Lista de bots
-  targetUrl: string = 'https://www.wikipedia.org'; // URL por defecto para ejecutar
-  executionMessage: string = ''; // Mensaje de éxito al ejecutar
+  bots: any[] = [];
+  targetUrl: string = 'https://www.wikipedia.org';
+  executionMessage: string = '';
 
   // Variables para crear nuevo bot
   newBotName: string = '';
   newBotDescription: string = '';
 
-  // Variable para guardar los KPIs (Inicializamos con ceros)
+  // Variable para controlar formulario
+  isRegistering: boolean = false;
+
+  // KPIs
   stats = {
     total: 0,
     by_status: {
@@ -39,11 +43,61 @@ export class AppComponent {
     },
   };
 
-  // Inyectamos ambos servicios
   constructor(
     private authService: AuthService,
-    private botService: BotService // private cd: ChangeDetectorRef
+    private botService: BotService,
+    private cd: ChangeDetectorRef
   ) {}
+
+  ngOnInit() {
+    // 1. RECUPERAR SESIÓN (Persistencia al dar F5)
+    const savedToken = localStorage.getItem('user_token');
+    const savedEmail = localStorage.getItem('user_email');
+
+    if (savedToken) {
+      this.token = savedToken;
+      if (savedEmail) this.currentUserEmail = savedEmail;
+
+      // Reactivamos el temporizador de seguridad
+      this.authService.setAutoLogoutTimer(savedToken);
+
+      // Cargamos datos y conectamos socket
+      this.loadBots();
+      this.loadStats();
+      this.botService.connectWebSocket();
+    }
+
+    // 2. SUSCRIPCIÓN A WEBSOCKETS (Escuchar cambios en tiempo real)
+    this.botService.messages$.subscribe((update: any) => {
+      // update trae { bot_name, status, last_analysis, last_analysis_at }
+
+      const botIndex = this.bots.findIndex((b) => b.name === update.bot_name);
+      if (botIndex !== -1) {
+        // Actualizamos SOLO el bot que cambió
+        this.bots[botIndex].status = update.status;
+        this.bots[botIndex].last_analysis = update.last_analysis;
+        this.bots[botIndex].last_analysis_at = update.last_analysis_at;
+
+        // Actualizamos estadísticas también para que cuadren los números
+        this.loadStats();
+
+        // Magia visual: Forzamos la detección de cambios
+        this.cd.detectChanges();
+
+        // Si hay un mensaje de "Enviando orden...", lo cambiamos a finalizado
+        if (this.executionMessage.includes(update.bot_name)) {
+          this.executionMessage = `🏁 ¡${update.bot_name} finalizó!`;
+          setTimeout(() => {
+            this.executionMessage = '';
+            this.cd.detectChanges();
+          }, 3000);
+          this.cd.detectChanges();
+        }
+      }
+    });
+  }
+
+  // --- LÓGICA DE AUTENTICACIÓN ---
 
   private cleanForm() {
     this.email = '';
@@ -53,29 +107,22 @@ export class AppComponent {
 
   toggleAuthMode(isRegistering: boolean) {
     this.isRegistering = isRegistering;
-    this.cleanForm(); // <--- ¡Aquí está el truco! Limpiamos al cambiar
+    this.cleanForm();
   }
-  // Variable para controlar qué formulario mostramos
-  isRegistering: boolean = false;
-  // Función para registrar
+
   onRegister() {
-    // 1. VALIDACIÓN SIMPLE
-    // .trim() elimina espacios en blanco al inicio y final
     if (!this.email.trim() || !this.password.trim()) {
       this.errorMessage = '⚠️ Por favor, completa todos los campos.';
-      return; // <--- AQUÍ DETENEMOS TODO
+      return;
     }
-
     if (this.password.length < 4) {
       this.errorMessage = '⚠️ La contraseña debe tener al menos 4 caracteres.';
       return;
     }
     this.authService.register(this.email, this.password).subscribe({
       next: (res) => {
-        // Si el registro es exitoso:
         this.errorMessage = '';
-        alert('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
-        // this.isRegistering = false; // Volvemos al Login automáticamente
+        alert('🆗 ¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
         this.toggleAuthMode(false);
       },
       error: (err) => {
@@ -92,54 +139,98 @@ export class AppComponent {
     }
     this.authService.login(this.email, this.password).subscribe({
       next: (response) => {
+        // Guardamos variables locales
         this.token = response.access_token;
+        this.currentUserEmail = this.email;
         this.errorMessage = '';
-        // ¡IMPORTANTE! Apenas nos logueamos, cargamos los bots
+
+        // GUARDAMOS EN LOCALSTORAGE (Persistencia)
+        localStorage.setItem('user_token', this.token!);
+        localStorage.setItem('user_email', this.email);
+
+        // ACTIVAMOS TEMPORIZADOR DE AUTO-LOGOUT
+        this.authService.setAutoLogoutTimer(this.token!);
+
+        // Iniciamos la app
         this.loadBots();
         this.loadStats();
+        this.botService.connectWebSocket();
         this.cleanForm();
       },
       error: (error) => {
-        console.error('ERROR: ' + error);
         this.errorMessage = 'Por favor valide las credenciales e intente nuevamente';
+        this.cd.detectChanges();
       },
     });
   }
 
-  // Función para pedir los bots a la API
+  logout() {
+    // Delegamos al servicio para que limpie token, timer y localStorage
+    this.authService.logout();
+    // Limpiamos variables locales por si acaso
+    this.token = null;
+    this.bots = [];
+    this.executionMessage = '';
+  }
+
+  onSubmit() {
+    if (this.isRegistering) {
+      this.onRegister();
+    } else {
+      this.onLogin();
+    }
+  }
+
+  // --- LÓGICA DE BOTS ---
+
   loadBots() {
     if (!this.token) return;
-
     this.botService.getBots(this.token).subscribe({
       next: (data) => {
         this.bots = data;
-        // this.cd.detectChanges();
+        this.cd.detectChanges();
       },
       error: (err) => console.error('Error cargando bots', err),
     });
   }
 
-  // Función para disparar el worker
+  loadStats() {
+    if (!this.token) return;
+    this.botService.getStats(this.token).subscribe({
+      next: (data) => {
+        this.stats = data;
+        this.cd.detectChanges();
+      },
+      error: (err) => console.error('Error cargando stats', err),
+    });
+  }
+
   runBot(botName: string) {
     if (!this.token) return;
     this.executionMessage = `Enviando orden a ${botName}...`;
 
+    // Feedback visual inmediato (opcional)
+    const bot = this.bots.find((b) => b.name === botName);
+    if (bot) bot.status = 'working';
+    this.cd.detectChanges();
+
     this.botService.executeBot(this.token, botName, this.targetUrl).subscribe({
       next: (res) => {
         this.executionMessage = `✅ ¡Orden recibida! ID Tarea: ${res.task_id}`;
-        // Borramos el mensaje a los 5 segundos
-        setTimeout(() => (this.executionMessage = ''), 5000);
+        this.cd.detectChanges();
+        // Nota: Ya no usamos setTimeout para borrar el mensaje aquí,
+        // dejamos que el WebSocket lo borre al terminar la tarea.
       },
       error: (err) => {
         this.executionMessage = `❌ Error: ${err.message}`;
+        if (bot) bot.status = 'failed';
+        this.cd.detectChanges();
       },
     });
   }
 
-  // FUNCIÓN NUEVA: Crear Bot
   createBot() {
     if (!this.token) return;
-
     const newBot = {
       name: this.newBotName,
       description: this.newBotDescription,
@@ -149,57 +240,46 @@ export class AppComponent {
     this.botService.createBot(this.token, newBot).subscribe({
       next: (res) => {
         this.executionMessage = `✅ Bot '${res.name}' creado exitosamente`;
-        // Limpiamos el formulario
         this.newBotName = '';
         this.newBotDescription = '';
-        // Recargamos la lista para que aparezca el nuevo
         this.loadBots();
         this.loadStats();
+        setTimeout(() => {
+          this.executionMessage = '';
+          this.cd.detectChanges();
+        }, 3000);
       },
-      error: (err) => (this.executionMessage = '❌ Error creando bot'),
+      error: (err) => {
+        this.executionMessage = '❌ Error creando bot';
+        this.cd.detectChanges();
+      },
     });
   }
 
-  // FUNCIÓN NUEVA: Borrar Bot
   deleteBot(botId: number) {
     if (!confirm('¿Estás seguro de que quieres eliminar este bot?')) return;
-
     if (!this.token) return;
 
     this.botService.deleteBot(this.token, botId).subscribe({
       next: () => {
         this.executionMessage = '🗑️ Bot eliminado';
-        this.loadBots(); // Recargar lista
+        this.loadBots();
         this.loadStats();
+        this.cd.detectChanges();
+        setTimeout(() => {
+          this.executionMessage = '';
+          this.cd.detectChanges();
+        }, 3000);
       },
-      error: (err) => (this.executionMessage = '❌ Error eliminando bot'),
+      error: (err) => {
+        this.executionMessage = '❌ Error eliminando bot';
+        this.cd.detectChanges();
+      },
     });
   }
 
-  // FUNCIÓN NUEVA
-  loadStats() {
-    if (!this.token) return;
-    this.botService.getStats(this.token).subscribe({
-      next: (data) => {
-        this.stats = data;
-        // this.cd.detectChanges();
-      },
-      error: (err) => console.error('Error cargando stats', err),
-    });
-  }
-
-  logout() {
-    this.token = null;
-    this.bots = [];
-    this.executionMessage = '';
-    this.cleanForm();
-  }
-
-  onSubmit() {
-    if (this.isRegistering) {
-      this.onRegister();
-    } else {
-      this.onLogin();
-    }
+  toggleExpand(bot: any) {
+    bot.isExpanded = !bot.isExpanded;
+    this.cd.detectChanges();
   }
 }
