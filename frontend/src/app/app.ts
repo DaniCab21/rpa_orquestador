@@ -237,6 +237,12 @@ export class AppComponent implements OnInit {
       status: 'idle',
     };
 
+    if (!newBot.name.trim() || !newBot.description.trim()) {
+      this.executionMessage = '⚠️ Por favor, completa todos los campos.';
+      this.cd.detectChanges();
+      return;
+    }
+
     this.botService.createBot(this.token, newBot).subscribe({
       next: (res) => {
         this.executionMessage = `✅ Bot '${res.name}' creado exitosamente`;

@@ -1,9 +1,15 @@
-from typing import Optional
 from sqlmodel import Field, SQLModel
+from typing import Optional
 
 
-class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+class UserBase(SQLModel):
     email: str = Field(unique=True, index=True)
-    hashed_password: str  # ¡OJO! Aquí guardamos el hash, nunca la pass real
     is_active: bool = True
+    is_superuser: bool = False
+    full_name: Optional[str] = None
+
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    hashed_password: str
+    active_token: Optional[str] = Field(default=None)

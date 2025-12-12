@@ -70,15 +70,18 @@ export class AuthService {
     }
   }
 
-  // 3. Función Logout actualizada
   logout() {
-    console.warn('👋 Cerrando sesión automáticamente...');
+    // 1. Avisar al backend para liberar la sesión
+    this.http.post(`${this.apiUrl}/auth/logout`, {}).subscribe({
+      next: () => console.log('Sesión liberada en servidor'),
+      error: (e) => console.warn('No se pudo liberar sesión', e),
+    });
+
+    // 2. Limpieza local (lo que ya tenías)
+    console.warn('👋 Cerrando sesión local...');
     this.tokenTimer = null;
     localStorage.removeItem('user_token');
     localStorage.removeItem('user_email');
-
-    // Redirigimos al usuario (opcional recargar para limpiar estado)
-    // this.router.navigate(['/']);
     window.location.reload();
   }
 }
