@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # Nota: En producción, es importante configurar SECRET_KEY como una variable de entorno segura.
     SECRET_KEY: str = "tu_secreto_super_seguro_cambialo_en_prod"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 5
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     class Config:
         """

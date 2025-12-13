@@ -5,92 +5,124 @@ from celery import shared_task
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By  # Importante para buscar elementos
+from selenium.webdriver.common.by import By
 
-# --- IMPORTS DE BASE DE DATOS ---
 from sqlmodel import Session, select
-from app.db.session import engine  # Necesitamos el motor para crear una sesión
-from app.models.bot import Bot  # Necesitamos el modelo para buscar y actualizar
-
-# --------------------------------
+from app.db.session import engine
+from app.models.bot import Bot
+from app.models.execution import Execution
 from app.celery_worker import celery_app
-from app.services.ai import analyze_text_with_gemini  # Importamos nuestro cerebro
+from app.services.ai import analyze_text_with_gemini
 
-# Configuramos cliente Redis (Síncrono para Celery)
+# --- CONFIGURACIÓN ---
 redis_url = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 redis_client = redis.from_url(redis_url)
 
 
-def get_remote_driver():
-    """Configura la conexión con Selenium Grid"""
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+# --- FUNCIONES AUXILIARES (DB) ---
+def _start_execution(bot_name: str, url: str):
+    """Registra el inicio del trabajo en la BD."""
+    with Session(engine) as session:
+        bot = session.exec(select(Bot).where(Bot.name == bot_name)).first()
+        if not bot:
+            return None, None
 
-    driver = webdriver.Remote(
-        command_executor="http://chrome:4444/wd/hub", options=chrome_options
-    )
-    return driver
+        # 1. Crear registro de historial
+        execution = Execution(
+            bot_id=bot.id, status="working", log_text=f"Iniciando tarea en {url}..."
+        )
+        session.add(execution)
+
+        # 2. Actualizar estado del bot
+        bot.status = "working"
+        session.add(bot)
+
+        session.commit()
+        session.refresh(execution)
+        return bot.id, execution.id
 
 
+def _end_execution(bot_id: int, execution_id: int, status: str, log_text: str):
+    """Registra el final del trabajo en la BD."""
+    if not bot_id or not execution_id:
+        return
+
+    with Session(engine) as session:
+        # 1. Cerrar historial
+        execution = session.get(Execution, execution_id)
+        if execution:
+            execution.status = status
+            execution.finished_at = datetime.utcnow()
+            execution.log_text = log_text
+            session.add(execution)
+
+        # 2. Liberar Bot
+        bot = session.get(Bot, bot_id)
+        if bot:
+            bot.status = status
+            if status == "completed":
+                bot.last_analysis = log_text
+                bot.last_analysis_at = datetime.utcnow()
+            session.add(bot)
+
+        session.commit()
+
+
+def _get_driver():
+    """Configura Selenium."""
+    opts = Options()
+    opts.add_argument("--headless")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    return webdriver.Remote(command_executor="http://chrome:4444/wd/hub", options=opts)
+
+
+# --- TAREA PRINCIPAL ---
 @celery_app.task(name="run_bot_task")
 def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
-    print(f"🤖 [INICIO] El bot '{bot_name}' inicia su misión de inteligencia...")
+    print(f"🤖 [START] {bot_name} -> {url_to_scrape}")
+
+    # 1. REGISTRO INICIAL (BD)
+    bot_id, execution_id = _start_execution(bot_name, url_to_scrape)
+    if not bot_id:
+        return "Error: Bot no encontrado"
 
     driver = None
+    status = "completed"
     result_text = ""
 
     try:
-        print("🔍 Iniciando proceso de scraping..." + str(datetime.utcnow()))
-        # 1. RPA
-        driver = get_remote_driver()
-        print(f"🌍 Navegando a: {url_to_scrape}")
+        # 2. LÓGICA DE NEGOCIO (RPA + IA)
+        driver = _get_driver()
         driver.get(url_to_scrape)
 
-        body_text = driver.find_element(By.TAG_NAME, "body").text
-        clean_text = " ".join(body_text.split())  # Limpiar espacios
+        raw_text = driver.find_element(By.TAG_NAME, "body").text
+        clean_text = " ".join(raw_text.split())[:10000]  # Limpiamos y cortamos
 
-        # 2. IA
-        print("🧠 Enviando a Gemini...")
         analysis = analyze_text_with_gemini(clean_text)
-
         result_text = f"Fuente: {driver.title}\n\n{analysis}"
 
-        # 3. PERSISTENCIA (GUARDAR EN DB)
-        # Abrimos una sesión efímera solo para guardar esto
-        with Session(engine) as session:
-            # Buscamos el bot por nombre
-            statement = select(Bot).where(Bot.name == bot_name)
-            bot_db = session.exec(statement).first()
-
-            if bot_db:
-                bot_db.last_analysis = result_text  # <--- GUARDAMOS AQUÍ
-                bot_db.last_analysis_at = datetime.utcnow()
-                bot_db.status = "completed"
-                session.add(bot_db)
-                session.commit()
-                print("💾 Análisis guardado en base de datos.")
-            else:
-                print("⚠️ No encontré el bot en la BD para guardar el resultado.")
-
-        message = {
-            "bot_name": bot_name,
-            "status": "completed",
-            "last_analysis": result_text,
-            "last_analysis_at": str(datetime.utcnow()),
-        }
-        # PUBLICAR EN CANAL REDIS
-        # 'bot_updates' es el nombre del canal (radio)
-        redis_client.publish("bot_updates", json.dumps(message))
-        print(f"📡 Evento publicado en Redis para {bot_name}")
     except Exception as e:
-        print(f"❌ Error crítico: {e}")
-        return f"Falló: {str(e)}"
+        print(f"❌ Error: {e}")
+        status = "failed"
+        result_text = f"Error en ejecución: {str(e)}"
 
     finally:
         if driver:
             driver.quit()
 
-    print(f"🏁 [FIN] Misión cumplida.")
+    # 3. GUARDADO FINAL (BD)
+    _end_execution(bot_id, execution_id, status, result_text)
+
+    # 4. NOTIFICACIÓN (Redis/WebSockets)
+    message = {
+        "bot_name": bot_name,
+        "status": status,
+        "last_analysis": result_text,
+        "last_analysis_at": str(datetime.utcnow()),
+        "execution_id": execution_id,
+    }
+    redis_client.publish("bot_updates", json.dumps(message))
+
+    print(f"🏁 [END] {bot_name} finalizado con estado: {status}")
     return result_text

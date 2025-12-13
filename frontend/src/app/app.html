@@ -37,7 +37,7 @@
         <h1>🤖 RPA Orchestrator</h1>
       </div>
       <div class="nav-actions">
-        <span class="user-email">{{currentUserEmail}}</span>
+        <span class="user-email">{{ currentUserEmail }}</span>
         <button (click)="logout()" class="logout-btn">Cerrar Sesión</button>
       </div>
     </nav>
@@ -104,6 +104,7 @@
             <div class="bot-actions">
               <button (click)="runBot(bot.name)" class="run-btn">▶ Ejecutar</button>
               <button (click)="deleteBot(bot.id)" class="delete-btn">🗑️</button>
+              <button class="btn-secondary" (click)="openHistory(bot)">📜 Historial</button>
             </div>
           </div>
 
@@ -142,4 +143,40 @@
     </div>
   </div>
   }
+</div>
+
+<div class="modal-overlay" *ngIf="showHistoryModal" (click)="closeHistory()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Historial: {{ selectedBotName }}</h3>
+      <button class="close-btn" (click)="closeHistory()">✖</button>
+    </div>
+
+    <div class="modal-body">
+      <p *ngIf="isLoadingHistory">Cargando datos...</p>
+
+      <p *ngIf="!isLoadingHistory && executions.length === 0">No hay ejecuciones registradas.</p>
+
+      <table *ngIf="executions.length > 0" class="history-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let exec of executions">
+            <td>{{ exec.started_at | date : 'medium' }}</td>
+            <td>
+              <span [class]="'badge ' + exec.status">{{ exec.status }}</span>
+            </td>
+            <td class="log-cell" [title]="exec.log_text">
+              {{ exec.log_text | slice : 0 : 50 }}...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>

@@ -1,10 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
+import { Execution } from './interfaces';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class BotService {
   private apiUrl = 'http://localhost:8000';
   private socket: WebSocket | undefined;
@@ -15,9 +14,7 @@ export class BotService {
 
   // Obtener headers con el token (Método auxiliar)
   private getHeaders(token: string): HttpHeaders {
-    return new HttpHeaders({
-      Authorization: `Bearer ${token}`,
-    });
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
   }
 
   // 1. Obtener lista de bots
@@ -79,5 +76,14 @@ export class BotService {
       console.warn('WebSocket desconectado. Reintentando en 3s...');
       setTimeout(() => this.connectWebSocket(), 3000);
     };
+  }
+
+  getExecutions(token: string, botId: number): Observable<Execution[]> {
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // Configuramos los filtros en la URL (?bot_id=X)
+    const params = new HttpParams().set('bot_id', botId.toString());
+
+    return this.http.get<Execution[]>(`${this.apiUrl}/executions/`, { headers, params });
   }
 }

@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from './auth.service';
 import { BotService } from './bot.service';
 import { ChangeDetectorRef } from '@angular/core';
+import { Execution } from './interfaces';
 
 @Component({
   selector: 'app-root',
@@ -42,6 +43,11 @@ export class AppComponent implements OnInit {
       failed: 0,
     },
   };
+
+  showHistoryModal: boolean = false;
+  selectedBotName: string = '';
+  executions: Execution[] = [];
+  isLoadingHistory: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -287,5 +293,31 @@ export class AppComponent implements OnInit {
   toggleExpand(bot: any) {
     bot.isExpanded = !bot.isExpanded;
     this.cd.detectChanges();
+  }
+
+  openHistory(bot: any) {
+    if (!this.token) return;
+
+    this.selectedBotName = bot.name;
+    this.showHistoryModal = true;
+    this.isLoadingHistory = true;
+    this.executions = []; // Limpiamos datos anteriores
+
+    this.botService.getExecutions(this.token, bot.id).subscribe({
+      next: (data) => {
+        this.executions = data;
+        this.isLoadingHistory = false;
+      },
+      error: (err) => {
+        console.error('Error cargando historial', err);
+        this.isLoadingHistory = false;
+      },
+    });
+  }
+
+  // --- FUNCIÓN NUEVA: CERRAR HISTORIAL ---
+  closeHistory() {
+    this.showHistoryModal = false;
+    this.executions = [];
   }
 }

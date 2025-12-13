@@ -478,3 +478,101 @@ button:hover {
     color: #0056b3;
   }
 }
+
+/* --- ESTILOS DEL MODAL --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6); /* Fondo oscuro semitransparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px); /* Efecto borroso elegante */
+}
+
+.modal-content {
+  background: white;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh; /* Máximo 80% de la altura de pantalla */
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Para que el scroll sea interno */
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto; /* Scroll si la lista es larga */
+}
+
+/* Tabla simple */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+  }
+
+  th {
+    background: #fafafa;
+    font-weight: 600;
+  }
+}
+
+/* Badges de estado */
+.badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+
+  &.completed {
+    background: #d4edda;
+    color: #155724;
+  }
+  &.failed {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  &.working {
+    background: #cce5ff;
+    color: #004085;
+  }
+  &.pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+}
