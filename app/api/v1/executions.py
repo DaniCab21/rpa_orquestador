@@ -6,7 +6,7 @@ from app.db.session import get_session
 from app.api.v1.deps import get_current_user
 from app.tasks import run_bot_task
 from app.models.execution import Execution
-from app.schemas.execution import ExecutionRead
+from app.schemas.executions import ExecutionRead
 
 router = APIRouter()
 
