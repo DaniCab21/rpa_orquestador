@@ -1,6 +1,8 @@
+import os
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import asyncio
 import redis.asyncio as redis
@@ -19,6 +21,11 @@ from app.websockets import (
 # Aquí combinamos la creación de BD y el inicio del listener de Redis
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 1. Crear carpeta de media si no existe
+    if not os.path.exists("media"):
+        os.makedirs("media")
+        print("📁 Carpeta 'media' creada para screenshots.")
+
     # 1. INICIO: Crear tablas de Base de Datos
     print("🚀 Iniciando RPA Orchestrator...")
     create_db_and_tables()
@@ -40,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 # --- INSTANCIA ÚNICA DE LA APP ---
 app = FastAPI(title="RPA Orchestrator", version="1.0.0", lifespan=lifespan)
-
+app.mount("/media", StaticFiles(directory="media"), name="media")
 # --- MIDDLEWARES ---
 origins = [
     "http://localhost:4200",  # Angular local

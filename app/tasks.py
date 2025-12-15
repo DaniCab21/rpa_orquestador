@@ -42,7 +42,13 @@ def _start_execution(bot_name: str, url: str):
         return bot.id, execution.id
 
 
-def _end_execution(bot_id: int, execution_id: int, status: str, log_text: str):
+def _end_execution(
+    bot_id: int,
+    execution_id: int,
+    status: str,
+    log_text: str,
+    screenshot_url: str = None,
+):
     """Registra el final del trabajo en la BD."""
     if not bot_id or not execution_id:
         return
@@ -54,6 +60,8 @@ def _end_execution(bot_id: int, execution_id: int, status: str, log_text: str):
             execution.status = status
             execution.finished_at = datetime.utcnow()
             execution.log_text = log_text
+            if screenshot_url:
+                execution.screenshot_url = screenshot_url
             session.add(execution)
 
         # 2. Liberar Bot
@@ -90,10 +98,12 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
     driver = None
     status = "completed"
     result_text = ""
+    screenshot_url = None
 
     try:
         # 2. LÓGICA DE NEGOCIO (RPA + IA)
         driver = _get_driver()
+        driver.set_window_size(1280, 800)
         driver.get(url_to_scrape)
 
         raw_text = driver.find_element(By.TAG_NAME, "body").text
@@ -101,18 +111,36 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
 
         analysis = analyze_text_with_gemini(clean_text)
         result_text = f"Fuente: {driver.title}\n\n{analysis}"
+        if not os.path.exists("media"):
+            os.makedirs("media")
+
+        filename = f"exec_{execution_id}.png"
+        filepath = os.path.join("media", filename)
+
+        driver.save_screenshot(filepath)
+        print(f"📸 Screenshot guardado en: {filepath}")
+
+        # La URL pública será /media/nombre_archivo.png
+        screenshot_url = f"/media/{filename}"
 
     except Exception as e:
         print(f"❌ Error: {e}")
         status = "failed"
         result_text = f"Error en ejecución: {str(e)}"
+        if driver:
+            try:
+                filename = f"error_{execution_id}.png"
+                driver.save_screenshot(os.path.join("media", filename))
+                screenshot_url = f"/media/{filename}"
+            except:
+                pass
 
     finally:
         if driver:
             driver.quit()
 
     # 3. GUARDADO FINAL (BD)
-    _end_execution(bot_id, execution_id, status, result_text)
+    _end_execution(bot_id, execution_id, status, result_text, screenshot_url)
 
     # 4. NOTIFICACIÓN (Redis/WebSockets)
     message = {

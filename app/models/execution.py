@@ -17,6 +17,5 @@ class Execution(SQLModel, table=True):
     log_text: Optional[str] = None  # Mensaje del resultado o error
     started_at: datetime = Field(default_factory=datetime.utcnow)
     finished_at: Optional[datetime] = None
-
-    # Relación (Opcional por ahora, útil para consultas avanzadas)
-    # bot: "Bot" = Relationship(back_populates="executions")
+    screenshot_url: Optional[str] = Field(default=None)
+    

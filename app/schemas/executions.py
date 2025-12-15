@@ -8,7 +8,7 @@ class ExecutionBase(BaseModel):
     log_text: Optional[str] = None
     started_at: datetime
     finished_at: Optional[datetime] = None
-
+    screenshot_url: Optional[str] = None
 
 class ExecutionRead(ExecutionBase):
     id: int
