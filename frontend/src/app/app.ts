@@ -44,10 +44,11 @@ export class AppComponent implements OnInit {
     },
   };
 
+  // 👇 VARIABLES NUEVAS PARA EL HISTORIAL
   showHistoryModal: boolean = false;
+  historyLoading: boolean = false;
   selectedBotName: string = '';
   executions: Execution[] = [];
-  isLoadingHistory: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -295,29 +296,33 @@ export class AppComponent implements OnInit {
     this.cd.detectChanges();
   }
 
-  openHistory(bot: any) {
+  // 👇 FUNCIÓN PARA ABRIR EL HISTORIAL
+  viewHistory(bot: any) {
     if (!this.token) return;
 
     this.selectedBotName = bot.name;
     this.showHistoryModal = true;
-    this.isLoadingHistory = true;
-    this.executions = []; // Limpiamos datos anteriores
+    this.historyLoading = true;
+    this.executions = []; // Limpiar datos viejos
+
+    this.cd.detectChanges();
 
     this.botService.getExecutions(this.token, bot.id).subscribe({
       next: (data) => {
         this.executions = data;
-        this.isLoadingHistory = false;
+        this.historyLoading = false;
+        this.cd.detectChanges();
       },
       error: (err) => {
         console.error('Error cargando historial', err);
-        this.isLoadingHistory = false;
+        this.historyLoading = false;
+        this.cd.detectChanges();
       },
     });
   }
 
-  // --- FUNCIÓN NUEVA: CERRAR HISTORIAL ---
+  // 👇 FUNCIÓN PARA CERRAR
   closeHistory() {
     this.showHistoryModal = false;
-    this.executions = [];
   }
 }

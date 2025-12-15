@@ -6,11 +6,17 @@
 
     <form (ngSubmit)="onSubmit()">
       <div class="form-group">
-        <input type="text" name="email" [(ngModel)]="email" placeholder="Email" />
+        <input type="text" name="email" [(ngModel)]="email" placeholder="Email" required />
       </div>
 
       <div class="form-group">
-        <input type="password" name="password" [(ngModel)]="password" placeholder="Contraseña" />
+        <input
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="Contraseña"
+          required
+        />
       </div>
 
       @if (!isRegistering) {
@@ -44,6 +50,7 @@
 
     <div class="dashboard-content">
       <div class="section-title">Resumen de Actividad</div>
+
       <div class="stats-container">
         <div class="stat-card total">
           <span class="stat-title">Total</span>
@@ -102,9 +109,15 @@
             </div>
 
             <div class="bot-actions">
-              <button (click)="runBot(bot.name)" class="run-btn">▶ Ejecutar</button>
+              <button
+                (click)="runBot(bot.name)"
+                class="run-btn"
+                [disabled]="bot.status === 'working'"
+              >
+                ▶ Ejecutar
+              </button>
               <button (click)="deleteBot(bot.id)" class="delete-btn">🗑️</button>
-              <button class="btn-secondary" (click)="openHistory(bot)">📜 Historial</button>
+              <button class="btn-secondary" (click)="viewHistory(bot)">📜 Historial</button>
             </div>
           </div>
 
@@ -145,19 +158,21 @@
   }
 </div>
 
-<div class="modal-overlay" *ngIf="showHistoryModal" (click)="closeHistory()">
+@if (showHistoryModal) {
+<div class="modal-overlay" (click)="closeHistory()">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Historial: {{ selectedBotName }}</h3>
-      <button class="close-btn" (click)="closeHistory()">✖</button>
+      <button class="close-btn" (click)="closeHistory(); $event.stopPropagation()">✖</button>
     </div>
 
     <div class="modal-body">
-      <p *ngIf="isLoadingHistory">Cargando datos...</p>
-
-      <p *ngIf="!isLoadingHistory && executions.length === 0">No hay ejecuciones registradas.</p>
-
-      <table *ngIf="executions.length > 0" class="history-table">
+      @if (historyLoading) {
+      <div class="loading-text">Cargando datos... ⏳</div>
+      } @else if (executions.length === 0) {
+      <div class="empty-text">No hay ejecuciones registradas.</div>
+      } @else {
+      <table class="history-table">
         <thead>
           <tr>
             <th>Fecha</th>
@@ -166,17 +181,21 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let exec of executions">
+          @for (exec of executions; track exec.id) {
+          <tr>
             <td>{{ exec.started_at | date : 'medium' }}</td>
             <td>
               <span [class]="'badge ' + exec.status">{{ exec.status }}</span>
             </td>
             <td class="log-cell" [title]="exec.log_text">
-              {{ exec.log_text | slice : 0 : 50 }}...
+              {{ exec.log_text | slice : 0 : 60 }}...
             </td>
           </tr>
+          }
         </tbody>
       </table>
+      }
     </div>
   </div>
 </div>
+}
