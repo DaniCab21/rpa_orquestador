@@ -1,6 +1,7 @@
 import json
 import os
 import redis
+import boto3
 from celery import shared_task
 from datetime import datetime
 from selenium import webdriver
@@ -17,6 +18,42 @@ from app.services.ai import analyze_text_with_gemini
 # --- CONFIGURACIÓN ---
 redis_url = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 redis_client = redis.from_url(redis_url)
+
+
+# --- FUNCIÓN NUEVA: SUBIR A S3 ---
+def upload_file_to_s3(file_path, object_name):
+    """Sube un archivo a AWS S3 y devuelve la URL pública."""
+
+    # 1. Leer credenciales
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    bucket_name = os.getenv("AWS_BUCKET_NAME")
+    region = os.getenv("AWS_REGION", "us-east-2")
+
+    if not access_key or not secret_key or not bucket_name:
+        print("⚠️ Faltan credenciales de AWS. Se usará almacenamiento local.")
+        return None
+
+    try:
+        # 2. Conectar
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region,
+        )
+
+        # 3. Subir
+        print(f"☁️ Subiendo a S3: {object_name}...")
+        s3_client.upload_file(file_path, bucket_name, object_name)
+
+        # 4. Generar URL Pública
+        url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{object_name}"
+        return url
+
+    except Exception as e:
+        print(f"❌ Error subiendo a S3: {e}")
+        return None
 
 
 # --- FUNCIONES AUXILIARES (DB) ---
@@ -98,7 +135,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
     driver = None
     status = "completed"
     result_text = ""
-    screenshot_url = None
+    final_screenshot_url = None
 
     try:
         # 2. LÓGICA DE NEGOCIO (RPA + IA)
@@ -114,14 +151,23 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
         if not os.path.exists("media"):
             os.makedirs("media")
 
-        filename = f"exec_{execution_id}.png"
-        filepath = os.path.join("media", filename)
-
-        driver.save_screenshot(filepath)
-        print(f"📸 Screenshot guardado en: {filepath}")
-
-        # La URL pública será /media/nombre_archivo.png
-        screenshot_url = f"/media/{filename}"
+        local_filename = f"exec_{execution_id}.png"
+        local_path = os.path.join("media", local_filename)
+        driver.save_screenshot(local_path)
+        # ☁️ SUBIR A LA NUBE
+        s3_filename = f"screenshots/{local_filename}"
+        s3_url = upload_file_to_s3(local_path, s3_filename)
+        print(
+            f"✅ Screenshot subida a: {s3_url}"
+            if s3_url
+            else "⚠️ No se subió el screenshot."
+        )
+        if s3_url:
+            final_screenshot_url = s3_url
+            # Opcional: Borrar el local para ahorrar espacio
+            os.remove(local_path)
+        else:
+            final_screenshot_url = f"/media/{local_filename}"  # Fallback local
 
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -131,7 +177,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
             try:
                 filename = f"error_{execution_id}.png"
                 driver.save_screenshot(os.path.join("media", filename))
-                screenshot_url = f"/media/{filename}"
+                final_screenshot_url = f"/media/{filename}"
             except:
                 pass
 
@@ -140,7 +186,7 @@ def run_bot_task(bot_name: str, url_to_scrape: str = "https://www.google.com"):
             driver.quit()
 
     # 3. GUARDADO FINAL (BD)
-    _end_execution(bot_id, execution_id, status, result_text, screenshot_url)
+    _end_execution(bot_id, execution_id, status, result_text, final_screenshot_url)
 
     # 4. NOTIFICACIÓN (Redis/WebSockets)
     message = {

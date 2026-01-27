@@ -177,6 +177,7 @@
           <tr>
             <th>Fecha</th>
             <th>Estado</th>
+            <th>Evidencia</th>
             <th>Resultado</th>
           </tr>
         </thead>
@@ -186,6 +187,15 @@
             <td>{{ exec.started_at | date : 'medium' }}</td>
             <td>
               <span [class]="'badge ' + exec.status">{{ exec.status }}</span>
+            </td>
+            <td>
+              @if (exec.screenshot_url) {
+              <a [href]="exec.screenshot_url" target="_blank" class="screenshot-link">
+                📸 Ver Foto
+              </a>
+              } @else {
+              <span class="no-data">-</span>
+              }
             </td>
             <td class="log-cell" [title]="exec.log_text">
               {{ exec.log_text | slice : 0 : 60 }}...
